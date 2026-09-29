@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+
+# LLM response cache (demo/offline safety)
+.cache/
+
+# logs
+*.log
+npm-debug.log*
+
+# test / coverage
+coverage/
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
