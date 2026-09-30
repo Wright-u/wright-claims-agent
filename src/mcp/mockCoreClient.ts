@@ -1,15 +1,19 @@
 import fs from "node:fs";
-import type { CoreClient, CoreTool, ToolCallResult } from "./types.js";
+import type { CoreClient, ToolCallResult } from "./types.js";
+import {
+  CODE_ANATOMY_TOOLS,
+  TOOL_IMPLEMENTATION,
+  TOOL_REFERENCES,
+  TOOL_SKELETON,
+} from "./codeAnatomy.js";
 
 interface FixtureSymbol {
   id: string;
   kind: string;
-  doc: string;
+  doc?: string;
   signature?: string;
   calls?: string[];
   calledBy?: string[];
-  externalCalls?: { kind: string; address: string }[];
-  flags?: Record<string, boolean>;
   lines?: [number, number];
   code?: string;
 }
@@ -19,148 +23,79 @@ interface FixtureFile {
   symbols: FixtureSymbol[];
 }
 
-interface FixtureEdge {
-  source: string;
-  target: string;
-  kind: string;
-  evidence: string[];
-}
-
 interface Fixture {
   containers: Record<string, { files: FixtureFile[] }>;
-  edges: FixtureEdge[];
 }
-
-const PLACEHOLDER_TOOLS: CoreTool[] = [
-  {
-    name: "get_outline",
-    description: "List files and top-level symbols (names + docs only) for a container.",
-    inputSchema: {
-      type: "object",
-      properties: { containerId: { type: "string" }, path: { type: "string" } },
-      required: ["containerId"],
-    },
-  },
-  {
-    name: "find_symbols",
-    description: "Search a container's symbols by keyword (name/doc/signature). Max 10 matches.",
-    inputSchema: {
-      type: "object",
-      properties: { containerId: { type: "string" }, query: { type: "string" } },
-      required: ["containerId", "query"],
-    },
-  },
-  {
-    name: "get_symbol",
-    description: "Get one symbol's signature, doc, calls, callers, external calls and flags.",
-    inputSchema: {
-      type: "object",
-      properties: { containerId: { type: "string" }, symbolId: { type: "string" } },
-      required: ["containerId", "symbolId"],
-    },
-  },
-  {
-    name: "get_edges",
-    description: "Container-to-container relationships already extracted for C2.",
-    inputSchema: {
-      type: "object",
-      properties: { source: { type: "string" }, target: { type: "string" } },
-    },
-  },
-  {
-    name: "request_code",
-    description: "Read the real source of one symbol (max ~60 lines). Requires a reason.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        containerId: { type: "string" },
-        symbolId: { type: "string" },
-        reason: { type: "string" },
-      },
-      required: ["containerId", "symbolId", "reason"],
-    },
-  },
-];
 
 function loadFixture(path: string): Fixture {
   return JSON.parse(fs.readFileSync(path, "utf8"));
 }
 
-function allSymbols(fx: Fixture, containerId: string): FixtureSymbol[] {
+function findSymbol(fx: Fixture, containerId: string, symbolId: string) {
   const container = fx.containers[containerId];
-  if (!container) return [];
-  return container.files.flatMap((f) => f.symbols);
+  if (!container) return undefined;
+  for (const file of container.files) {
+    const symbol = file.symbols.find((s) => s.id === symbolId);
+    if (symbol) return { file, symbol };
+  }
+  return undefined;
 }
 
-function findSymbol(fx: Fixture, containerId: string, symbolId: string): FixtureSymbol | undefined {
-  return allSymbols(fx, containerId).find((s) => s.id === symbolId);
-}
+const nameOf = (id: string): string => id.slice(id.indexOf("#") + 1).split(".").pop() ?? id;
+const fileOf = (id: string): string => id.slice(0, id.indexOf("#"));
 
 export function createMockCoreClient(fixturePath: string): CoreClient {
   const fixture = loadFixture(fixturePath);
 
   async function callTool(name: string, args: Record<string, unknown>): Promise<ToolCallResult> {
+    const containerId = String(args.containerId ?? "");
+
     switch (name) {
-      case "get_outline": {
-        const containerId = args.containerId as string;
+      case TOOL_SKELETON: {
         const container = fixture.containers[containerId];
         if (!container) return { content: { files: [] } };
-        const files = container.files.map((f) => ({
-          path: f.path,
-          symbols: f.symbols.map((s) => ({ id: s.id, kind: s.kind, doc: s.doc })),
-        }));
-        return { content: { files } };
-      }
-
-      case "find_symbols": {
-        const containerId = args.containerId as string;
-        const query = String(args.query ?? "").toLowerCase();
-        const matches = allSymbols(fixture, containerId)
-          .filter(
-            (s) =>
-              s.id.toLowerCase().includes(query) ||
-              s.doc.toLowerCase().includes(query) ||
-              (s.signature ?? "").toLowerCase().includes(query)
-          )
-          .slice(0, 10)
-          .map((s) => ({ id: s.id, kind: s.kind, signature: s.signature ?? "", doc: s.doc }));
-        return { content: { matches } };
-      }
-
-      case "get_symbol": {
-        const containerId = args.containerId as string;
-        const symbolId = args.symbolId as string;
-        const sym = findSymbol(fixture, containerId, symbolId);
-        if (!sym) return { content: { error: "symbol not found in this container" } };
         return {
           content: {
-            signature: sym.signature ?? "",
-            doc: sym.doc,
-            calls: sym.calls ?? [],
-            calledBy: sym.calledBy ?? [],
-            externalCalls: sym.externalCalls ?? [],
-            flags: sym.flags ?? {},
+            files: container.files.map((f) => ({
+              path: f.path,
+              symbols: f.symbols.map((s) => ({
+                id: s.id,
+                type: s.kind,
+                datatype: s.signature ?? "",
+                modifiers: [],
+              })),
+            })),
           },
         };
       }
 
-      case "get_edges": {
-        const source = args.source as string | undefined;
-        const target = args.target as string | undefined;
-        const edges = fixture.edges.filter(
-          (e) => (!source || e.source === source) && (!target || e.target === target)
-        );
-        return { content: { edges } };
+      case TOOL_IMPLEMENTATION: {
+        const symbolId = String(args.symbolId ?? "");
+        const hit = findSymbol(fixture, containerId, symbolId);
+        if (!hit) return { content: { error: `Unknown symbolId "${symbolId}"`, symbolId } };
+        if (!hit.symbol.code) {
+          return { content: { error: "no implementation body available for this symbol", symbolId } };
+        }
+        return { content: { symbolId, body: hit.symbol.code.split("\n") } };
       }
 
-      case "request_code": {
-        const containerId = args.containerId as string;
-        const symbolId = args.symbolId as string;
-        const sym = findSymbol(fixture, containerId, symbolId);
-        if (!sym || !sym.code || !sym.lines) {
-          return { content: { error: "no code available for this symbol in the fixture" } };
-        }
-        return { content: { symbolId, lines: sym.lines, code: sym.code } };
+      case TOOL_REFERENCES: {
+        const symbolId = String(args.symbolId ?? "");
+        const hit = findSymbol(fixture, containerId, symbolId);
+        if (!hit) return { content: { error: `Unknown symbolId "${symbolId}"`, symbolId } };
+        return {
+          content: {
+            symbolId,
+            references: (hit.symbol.calledBy ?? []).map((id) => ({
+              id,
+              source: fileOf(id),
+              name: nameOf(id),
+              type: "method",
+              lineNumber: 0,
+            })),
+            note: "References are matched by symbol NAME across every repository Core stores, not only this container. Check each source path.",
+          },
+        };
       }
 
       default:
@@ -168,9 +103,5 @@ export function createMockCoreClient(fixturePath: string): CoreClient {
     }
   }
 
-  return {
-    tools: PLACEHOLDER_TOOLS,
-    callTool,
-    close: async () => {},
-  };
+  return { tools: CODE_ANATOMY_TOOLS, callTool, close: async () => {} };
 }
