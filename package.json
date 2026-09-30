@@ -5,14 +5,13 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "NODE_OPTIONS=--dns-result-order=ipv4first tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "mock-core": "tsx watch test/mock-core/server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval": "tsx test/eval/run-eval.ts",
-    "try": "tsx scripts/try-verify.ts",
+    "eval": "NODE_OPTIONS=--dns-result-order=ipv4first tsx test/eval/run-eval.ts",
+    "try": "NODE_OPTIONS=--dns-result-order=ipv4first tsx scripts/try-verify.ts",
     "lint": "eslint src test",
     "typecheck": "tsc --noEmit"
   },
@@ -27,9 +26,10 @@
   },
   "homepage": "https://github.com/Wright-u/wright-claims-agent#readme",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.4.0",
     "fastify": "^5.0.0",
+    "groq-sdk": "^1.6.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
