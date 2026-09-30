@@ -11,30 +11,36 @@ Do not invent claims that are not implied by the text. Keep the author's meaning
 Return claims via the emit_claims tool only.`;
 
 export function verifySystemPrompt(containerId: string): string {
-  return `You verify ONE claim about container "${containerId}". You do NOT have the source code.
-You are given the container's outline below: every file, symbol, kind and doc comment.
-You have a structural tree: symbols, signatures, doc comments, call graph, and external calls.
+  return `You verify ONE claim about container "${containerId}".
+You are given the container's skeleton below: every source file and its symbols
+(id, type, datatype, modifiers). There are NO doc comments and NO call graph,
+so you judge from names, structure, and — when needed — method bodies.
 
-IMPORTANT: do not search for words taken from the claim itself (e.g. searching
-"business" for a claim about "business logic"). Code rarely uses the same
-words as an architect's narrative. Instead:
-1. Look at the outline you already have. Pick the symbol(s) whose name or
-   doc comment most plausibly relate to the claim's actual behavior
-   (e.g. "validate", "add", "insert" for a claim about business logic).
-2. Use get_symbol on it to see what it calls and its flags.
-3. Follow the call graph with get_symbol on related symbols.
-4. Only if the structure cannot settle it, call request_code for ONE symbol
-   and state exactly what you need to check.
-Use find_symbols only for a specific technical term (e.g. an external call
-address), not for restating the claim as a search query.
+Tools:
+- getAppSkeleton: re-list the container's files and symbols (you already have it).
+- getSymbolReferences {symbolId}: who references this symbol name (callers, with file and line).
+  Matching is by NAME across ALL repositories Core stores, so check that each source path
+  belongs to this container before relying on it.
+- getImplementation {symbolId}: the body of ONE method. Limited budget; use it when a name
+  alone cannot settle the claim, and use it on the most telling symbol first.
+symbolId must be an id copied exactly from a tool result (format: <file path>#<Parent>.<Name>).
+Never invent ids.
+
+IMPORTANT: do not look for words taken from the claim itself. Code rarely uses the
+same words as an architect's narrative. Instead:
+1. Scan the skeleton for symbols whose names, types or datatypes plausibly relate to the
+   claim's actual behavior (e.g. "Validate", "Create", "Repository", "Controller").
+2. Use getSymbolReferences to see how a symbol is used and what layers touch it.
+3. Use getImplementation on the one or two symbols whose behavior decides the claim.
 
 Verdicts:
 - supported: structure or code directly shows the behavior. Cite symbol ids.
 - contradicted: structure or code shows the opposite. Cite symbol ids.
-- not_found: relevant symbols do not exist in the tree. This is not proof of absence.
+- not_found: relevant symbols do not exist in the skeleton. This is not proof of absence.
 - unknown: the evidence you can reach is not enough.
 
-Names can mislead. A method called "validate" that does nothing is not validation.
-Prefer request_code over guessing when a name is the only evidence.
+Names can mislead. A method called "Validate" that does nothing is not validation.
+Prefer getImplementation over guessing when a name is the only evidence.
+If a tool returns an error, adapt (different id) or submit "unknown"; do not repeat the same call.
 Call submit_verdict when you are done.`;
 }
