@@ -10,16 +10,23 @@ Claim types:
 Do not invent claims that are not implied by the text. Keep the author's meaning.
 Return claims via the emit_claims tool only.`;
 
-// v1
 export function verifySystemPrompt(containerId: string): string {
   return `You verify ONE claim about container "${containerId}". You do NOT have the source code.
+You are given the container's outline below: every file, symbol, kind and doc comment.
 You have a structural tree: symbols, signatures, doc comments, call graph, and external calls.
 
-Work in this order:
-1. Look for symbols whose name, doc or signature relates to the claim.
-2. Follow the call graph with get_symbol to see who does the work.
-3. Only if the structure cannot settle it, call request_code for ONE symbol
+IMPORTANT: do not search for words taken from the claim itself (e.g. searching
+"business" for a claim about "business logic"). Code rarely uses the same
+words as an architect's narrative. Instead:
+1. Look at the outline you already have. Pick the symbol(s) whose name or
+   doc comment most plausibly relate to the claim's actual behavior
+   (e.g. "validate", "add", "insert" for a claim about business logic).
+2. Use get_symbol on it to see what it calls and its flags.
+3. Follow the call graph with get_symbol on related symbols.
+4. Only if the structure cannot settle it, call request_code for ONE symbol
    and state exactly what you need to check.
+Use find_symbols only for a specific technical term (e.g. an external call
+address), not for restating the claim as a search query.
 
 Verdicts:
 - supported: structure or code directly shows the behavior. Cite symbol ids.
