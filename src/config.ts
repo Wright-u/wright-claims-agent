@@ -3,9 +3,11 @@ import { z } from "zod";
 
 const EnvSchema = z.object({
   PORT: z.coerce.number().default(4000),
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
 
- // Free-tier LLM via Groq. Get a key at https://console.groq.com/keys (no card).
+  // Free-tier LLM via Groq. Get a key at https://console.groq.com/keys (no card).
   // Model names on free tiers change — check https://console.groq.com/docs/models
   // if the default below stops working.
   LLM_API_KEY: z.string().min(1, "LLM_API_KEY is required"),
@@ -15,11 +17,15 @@ const EnvSchema = z.object({
   CORE_API_KEY: z.string().default(""),
 
   CORE_MODE: z.enum(["mock", "mcp"]).default("mock"),
-  MOCK_FIXTURE_PATH: z.string().default("test/mock-core/fixtures/notes-tool.json"),
+  MOCK_FIXTURE_PATH: z
+    .string()
+    .default("test/mock-core/fixtures/notes-tool.json"),
 
-  // Name of whichever tool reveals real source code, so it can be rationed.
-  CODE_READ_TOOL_NAME: z.string().default("request_code"),
-  OUTLINE_TOOL_NAME: z.string().default("get_outline"),
+  CODE_READ_TOOL_NAME: z.string().default("getImplementation"),
+
+  OUTLINE_TOOL_NAME: z.string().default("getAppSkeleton"),
+
+  CORE_APP_URL_TEMPLATE: z.string().default("{containerId}"),
 
   AGENT_API_KEY: z.string().default(""),
 

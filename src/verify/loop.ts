@@ -60,7 +60,7 @@ export async function verify(containerId: string, claim: Claim): Promise<VerifyR
       outlineText = text;
     }
   } catch {
-   // If the outline is unavailable, the model can still search/ask
+    // If the outline is unavailable, the model can still search/ask
   }
 
   const messages: LlmMessage[] = [
