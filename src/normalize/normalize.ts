@@ -1,11 +1,12 @@
 import { callLlm } from "../llm/client.js";
 import type { ToolDef } from "../llm/types.js";
-import { NORMALIZE_SYSTEM_PROMPT } from "../llm/prompts.js";
+import { normalizeSystemPrompt } from "../llm/prompts.js";
 import { LlmClaimsOutputSchema } from "../domain/schemas.js";
 import type { Claim } from "../domain/types.js";
 
+const EMIT_CLAIMS = "emit_claims";
 const emitClaimsTool: ToolDef = {
-  name: "emit_claims",
+  name: EMIT_CLAIMS,
   description: "Return the atomic, testable claims extracted from the narrative.",
   input_schema: {
     type: "object",
@@ -28,16 +29,16 @@ const emitClaimsTool: ToolDef = {
 
 export async function normalize(containerId: string, narrative: string): Promise<Claim[]> {
   const response = await callLlm({
-    system: NORMALIZE_SYSTEM_PROMPT,
+    system: normalizeSystemPrompt(EMIT_CLAIMS),
     tools: [emitClaimsTool],
-    forceTool: "emit_claims",
+    forceTool: EMIT_CLAIMS,
     messages: [{ role: "user", content: narrative }],
   });
 
   const toolUse = response.content.find(
     (b): b is Extract<typeof b, { type: "tool_use" }> => b.type === "tool_use"
   );
-  if (!toolUse) throw new Error("LLM did not call emit_claims");
+  if (!toolUse) throw new Error(`LLM did not call ${EMIT_CLAIMS}`);
 
   const parsed = LlmClaimsOutputSchema.parse(toolUse.input);
 
