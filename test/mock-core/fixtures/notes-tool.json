@@ -1,86 +1,116 @@
 {
-  "containers": {
-    "daemon": {
-      "files": [
-        {
-          "path": "daemon/src/service.ts",
-          "symbols": [
-            {
-              "id": "daemon/src/service.ts#NoteService.add",
-              "kind": "method",
-              "doc": "Creates a note",
-              "signature": "add(title: string, body: string): Promise<Note>",
-              "calls": [
-                "daemon/src/service.ts#validateTitle",
-                "daemon/src/repo.ts#NoteRepo.insert"
-              ],
-              "calledBy": [],
-              "externalCalls": [],
-              "flags": { "throws": false, "hasTryCatch": false, "hasLoop": false }
-            },
-            {
-              "id": "daemon/src/service.ts#validateTitle",
-              "kind": "function",
-              "doc": "Rejects empty or overlong titles",
-              "signature": "validateTitle(t: string): void",
-              "calls": [],
-              "calledBy": ["daemon/src/service.ts#NoteService.add"],
-              "externalCalls": [],
-              "flags": { "throws": true, "hasTryCatch": false, "hasLoop": false },
-              "lines": [34, 38],
-              "code": "function validateTitle(t) {\n  if (!t || t.length > 200) throw new Error('invalid title');\n}"
-            }
-          ]
-        },
-        {
-          "path": "daemon/src/repo.ts",
-          "symbols": [
-            {
-              "id": "daemon/src/repo.ts#NoteRepo.insert",
-              "kind": "method",
-              "doc": "Writes a note to the database",
-              "signature": "insert(note: Note): Promise<void>",
-              "calls": [],
-              "calledBy": ["daemon/src/service.ts#NoteService.add"],
-              "externalCalls": [{ "kind": "network", "address": "localhost:5432" }],
-              "flags": { "throws": false, "hasTryCatch": false, "hasLoop": false }
-            }
-          ]
-        }
-      ]
-    },
-    "cli": {
-      "files": [
-        {
-          "path": "cli/src/export.ts",
-          "symbols": [
-            {
-              "id": "cli/src/export.ts#exportNotes",
-              "kind": "function",
-              "doc": "Exports notes directly from the database",
-              "signature": "exportNotes(): Promise<void>",
-              "calls": [],
-              "calledBy": [],
-              "externalCalls": [{ "kind": "network", "address": "127.0.0.1:5432" }],
-              "flags": { "throws": false, "hasTryCatch": false, "hasLoop": false }
-            }
-          ]
-        }
-      ]
-    }
-  },
-  "edges": [
-    {
-      "source": "daemon",
-      "target": "db",
-      "kind": "network",
-      "evidence": ["daemon/src/repo.ts#NoteRepo.insert"]
-    },
-    {
-      "source": "cli",
-      "target": "db",
-      "kind": "network",
-      "evidence": ["cli/src/export.ts#exportNotes"]
-    }
-  ]
+	"containers": {
+		"daemon": {
+			"files": [
+				{
+					"path": "daemon/src/service.ts",
+					"symbols": [
+						{
+							"id": "daemon/src/service.ts#NoteService.add",
+							"kind": "method",
+							"doc": "Creates a note",
+							"signature": "add(title: string, body: string): Promise<Note>",
+							"calls": [
+								"daemon/src/service.ts#validateTitle",
+								"daemon/src/repo.ts#NoteRepo.insert"
+							],
+							"calledBy": [],
+							"externalCalls": [],
+							"flags": {
+								"throws": false,
+								"hasTryCatch": false,
+								"hasLoop": false
+							}
+						},
+						{
+							"id": "daemon/src/service.ts#validateTitle",
+							"kind": "function",
+							"doc": "Rejects empty or overlong titles",
+							"signature": "validateTitle(t: string): void",
+							"calls": [],
+							"calledBy": [
+								"daemon/src/service.ts#NoteService.add"
+							],
+							"externalCalls": [],
+							"flags": {
+								"throws": true,
+								"hasTryCatch": false,
+								"hasLoop": false
+							},
+							"lines": [34, 38],
+							"code": "function validateTitle(t) {\n  if (!t || t.length > 200) throw new Error('invalid title');\n}"
+						}
+					]
+				},
+				{
+					"path": "daemon/src/repo.ts",
+					"symbols": [
+						{
+							"id": "daemon/src/repo.ts#NoteRepo.insert",
+							"kind": "method",
+							"doc": "Writes a note to the database",
+							"signature": "insert(note: Note): Promise<void>",
+							"calls": [],
+							"calledBy": [
+								"daemon/src/service.ts#NoteService.add"
+							],
+							"externalCalls": [
+								{
+									"kind": "network",
+									"address": "localhost:5432"
+								}
+							],
+							"flags": {
+								"throws": false,
+								"hasTryCatch": false,
+								"hasLoop": false
+							}
+						}
+					]
+				}
+			]
+		},
+		"cli": {
+			"files": [
+				{
+					"path": "cli/src/export.ts",
+					"symbols": [
+						{
+							"id": "cli/src/export.ts#exportNotes",
+							"kind": "function",
+							"doc": "Exports notes directly from the database",
+							"signature": "exportNotes(): Promise<void>",
+							"calls": [],
+							"calledBy": [],
+							"externalCalls": [
+								{
+									"kind": "network",
+									"address": "127.0.0.1:5432"
+								}
+							],
+							"flags": {
+								"throws": false,
+								"hasTryCatch": false,
+								"hasLoop": false
+							}
+						}
+					]
+				}
+			]
+		}
+	},
+	"edges": [
+		{
+			"source": "daemon",
+			"target": "db",
+			"kind": "network",
+			"evidence": ["daemon/src/repo.ts#NoteRepo.insert"]
+		},
+		{
+			"source": "cli",
+			"target": "db",
+			"kind": "network",
+			"evidence": ["cli/src/export.ts#exportNotes"]
+		}
+	]
 }

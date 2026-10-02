@@ -5,17 +5,20 @@
  */
 
 export interface CoreTool {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
+	name: string;
+	description: string;
+	inputSchema: Record<string, unknown>;
 }
 
 export interface ToolCallResult {
-  content: unknown;
+	content: unknown;
 }
 
 export interface CoreClient {
-  tools: CoreTool[];
-  callTool(name: string, args: Record<string, unknown>): Promise<ToolCallResult>;
-  close(): Promise<void>;
+	tools: CoreTool[];
+	callTool(
+		name: string,
+		args: Record<string, unknown>
+	): Promise<ToolCallResult>;
+	close(): Promise<void>;
 }

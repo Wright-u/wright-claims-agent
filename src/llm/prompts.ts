@@ -1,5 +1,5 @@
 export function normalizeSystemPrompt(outputToolName: string): string {
-  return `Split the architect's narrative into atomic, testable claims.
+	return `Split the architect's narrative into atomic, testable claims.
 One checkable fact per claim.
 
 Claim types:
@@ -13,10 +13,10 @@ Return the claims by calling ${outputToolName} only.`;
 }
 
 export function verifySystemPrompt(
-  containerId: string,
-  submitToolName: string,
+	containerId: string,
+	submitToolName: string
 ): string {
-  return `You verify ONE claim about the software container "${containerId}" by inspecting its code
+	return `You verify ONE claim about the software container "${containerId}" by inspecting its code
 through the tools you are given. Read each tool's description and input schema carefully and
 use them as documented; do not assume any tool exists beyond those listed.
 The container is identified by "${containerId}": use it wherever a tool asks for the app /
