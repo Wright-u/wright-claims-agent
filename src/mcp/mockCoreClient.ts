@@ -1,99 +1,128 @@
 import fs from "node:fs";
-import type { CoreClient, ToolCallResult } from "./types.js";
-import {
-  CODE_ANATOMY_TOOLS,
-  TOOL_IMPLEMENTATION,
-  TOOL_REFERENCES,
-  TOOL_SKELETON,
-} from "./codeAnatomy.js";
+import type { CoreClient, CoreTool, ToolCallResult } from "./types.js";
 
 interface FixtureSymbol {
-  id: string;
+  id: string; // "<file path>#<Parent>.<Name>"
   kind: string;
-  doc?: string;
   signature?: string;
-  calls?: string[];
-  calledBy?: string[];
-  lines?: [number, number];
   code?: string;
+  calledBy?: string[];
 }
-
 interface FixtureFile {
   path: string;
   symbols: FixtureSymbol[];
 }
-
 interface Fixture {
   containers: Record<string, { files: FixtureFile[] }>;
 }
 
-function loadFixture(path: string): Fixture {
-  return JSON.parse(fs.readFileSync(path, "utf8"));
+const urlSchema = (description: string): Record<string, unknown> => ({
+  type: "object",
+  properties: { url: { type: "string", description } },
+  required: ["url"],
+});
+
+const MOCK_TOOLS: CoreTool[] = [
+  {
+    name: "getAppSkeleton",
+    description: "Retrieves all the files content signatures of a given app",
+    inputSchema: urlSchema("URL of the repository of the app"),
+  },
+  {
+    name: "getImplementation",
+    description: "Get the implementation body of a method",
+    inputSchema: urlSchema(
+      "URL of the method in the app. Example: <repo_url>/<file_name>/<parent_container_if_any>/<method_name>"
+    ),
+  },
+  {
+    name: "getSymbolReferences",
+    description: "Get the symbol references of a method",
+    inputSchema: urlSchema(
+      "URL of the method in the app. Example: <repo_url>/<file_name>/<parent_container_if_any>/<method_name>"
+    ),
+  },
+];
+
+interface Sig {
+  name: string;
+  type: string;
+  datatype: string;
+  modifiers: string[];
+  internals: Sig[];
 }
 
-function findSymbol(fx: Fixture, containerId: string, symbolId: string) {
-  const container = fx.containers[containerId];
-  if (!container) return undefined;
-  for (const file of container.files) {
-    const symbol = file.symbols.find((s) => s.id === symbolId);
-    if (symbol) return { file, symbol };
+function buildSignatures(symbols: FixtureSymbol[]): Sig[] {
+  const roots: Sig[] = [];
+  for (const s of symbols) {
+    const chain = s.id.slice(s.id.indexOf("#") + 1).split(".");
+    let level = roots;
+    chain.forEach((name, i) => {
+      let node = level.find((n) => n.name === name);
+      if (!node) {
+        node = { name, type: i === chain.length - 1 ? s.kind : "class", datatype: "", modifiers: [], internals: [] };
+        level.push(node);
+      }
+      if (i === chain.length - 1) {
+        node.type = s.kind;
+        node.datatype = s.signature ?? "";
+      }
+      level = node.internals;
+    });
+  }
+  return roots;
+}
+
+function resolveMethodUrl(fx: Fixture, url: string): { file: FixtureFile; symbol: FixtureSymbol } | undefined {
+  for (const container of Object.values(fx.containers)) {
+    for (const file of container.files) {
+      if (!url.startsWith(file.path + "/")) continue;
+      const chain = url.slice(file.path.length + 1).split("/").filter(Boolean).join(".");
+      const symbol = file.symbols.find((s) => s.id === `${file.path}#${chain}`);
+      if (symbol) return { file, symbol };
+    }
   }
   return undefined;
 }
 
-const nameOf = (id: string): string => id.slice(id.indexOf("#") + 1).split(".").pop() ?? id;
-const fileOf = (id: string): string => id.slice(0, id.indexOf("#"));
-
 export function createMockCoreClient(fixturePath: string): CoreClient {
-  const fixture = loadFixture(fixturePath);
+  const fixture: Fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
 
   async function callTool(name: string, args: Record<string, unknown>): Promise<ToolCallResult> {
-    const containerId = String(args.containerId ?? "");
+    const url = String(args.url ?? "").replace(/\/+$/, "");
 
     switch (name) {
-      case TOOL_SKELETON: {
-        const container = fixture.containers[containerId];
-        if (!container) return { content: { files: [] } };
+      case "getAppSkeleton": {
+        const container = fixture.containers[url];
+        if (!container) return { content: { error: `Directory not found: ${url}` } };
         return {
           content: {
-            files: container.files.map((f) => ({
-              path: f.path,
-              symbols: f.symbols.map((s) => ({
-                id: s.id,
-                type: s.kind,
-                datatype: s.signature ?? "",
-                modifiers: [],
-              })),
-            })),
+            files: container.files.map((f) => ({ path: f.path, signatures: buildSignatures(f.symbols) })),
           },
         };
       }
 
-      case TOOL_IMPLEMENTATION: {
-        const symbolId = String(args.symbolId ?? "");
-        const hit = findSymbol(fixture, containerId, symbolId);
-        if (!hit) return { content: { error: `Unknown symbolId "${symbolId}"`, symbolId } };
-        if (!hit.symbol.code) {
-          return { content: { error: "no implementation body available for this symbol", symbolId } };
-        }
-        return { content: { symbolId, body: hit.symbol.code.split("\n") } };
+      case "getImplementation": {
+        const hit = resolveMethodUrl(fixture, url);
+        if (!hit) return { content: { error: `Could not find the declaration at ${url}` } };
+        if (!hit.symbol.code) return { content: { error: "The declaration has no body" } };
+        return { content: { body: hit.symbol.code.split("\n") } };
       }
 
-      case TOOL_REFERENCES: {
-        const symbolId = String(args.symbolId ?? "");
-        const hit = findSymbol(fixture, containerId, symbolId);
-        if (!hit) return { content: { error: `Unknown symbolId "${symbolId}"`, symbolId } };
+      case "getSymbolReferences": {
+        const hit = resolveMethodUrl(fixture, url);
+        if (!hit) return { content: { error: `Could not find the declaration at ${url}` } };
         return {
           content: {
-            symbolId,
-            references: (hit.symbol.calledBy ?? []).map((id) => ({
-              id,
-              source: fileOf(id),
-              name: nameOf(id),
-              type: "method",
-              lineNumber: 0,
-            })),
-            note: "References are matched by symbol NAME across every repository Core stores, not only this container. Check each source path.",
+            references: (hit.symbol.calledBy ?? []).map((id) => {
+              const source = id.slice(0, id.indexOf("#"));
+              const chain = id.slice(id.indexOf("#") + 1).split(".");
+              return {
+                source,
+                signature: { name: chain[chain.length - 1], type: "method", datatype: "", modifiers: [], internals: [] },
+                lineNumber: 1,
+              };
+            }),
           },
         };
       }
@@ -103,5 +132,5 @@ export function createMockCoreClient(fixturePath: string): CoreClient {
     }
   }
 
-  return { tools: CODE_ANATOMY_TOOLS, callTool, close: async () => {} };
+  return { tools: MOCK_TOOLS, callTool, close: async () => {} };
 }
