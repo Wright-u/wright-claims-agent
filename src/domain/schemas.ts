@@ -20,21 +20,12 @@ export const VerdictSchema = z.enum([
 	'undetermined',
 ]);
 
-export const NormalizeRequestSchema = z.object({
-	containerId: z.string().min(1),
+export const VerifyRequestSchema = z.object({
+	appName: z.string().min(1),
 	narrative: z.string().min(1),
 });
 
-export const NormalizeResponseSchema = z.object({
-	claims: z.array(ClaimSchema),
-});
-
-export const VerifyRequestSchema = z.object({
-	containerId: z.string().min(1),
-	claim: ClaimSchema,
-});
-
-export const VerifyResponseSchema = z.object({
+const VerifyResultSchema = z.object({
 	claimId: z.string(),
 	verdict: VerdictSchema,
 	reasoning: z.string(),
@@ -49,6 +40,11 @@ export const VerifyResponseSchema = z.object({
 			resultSummary: z.string(),
 		})
 	),
+});
+
+export const VerifyResponseSchema = z.object({
+	claims: z.array(ClaimSchema),
+	results: z.array(VerifyResultSchema),
 });
 
 // What the LLM must return when asked to emit claims

@@ -26,12 +26,12 @@ export interface VerifyResult {
 	trace: TraceStep[];
 }
 
-export interface NormalizeRequest {
-	containerId: string;
+export interface VerifyRequest {
+	appName: string;
 	narrative: string;
 }
 
-export interface VerifyRequest {
-	containerId: string;
-	claim: Claim;
+export interface NarrativeVerificationResult {
+	claims: Claim[];
+	results: VerifyResult[];
 }

@@ -1,10 +1,17 @@
 import Fastify from 'fastify';
-import { registerRoutes } from './routes.js';
-import { errorHandler } from './errors.js';
+import { RouteRegistrar } from './routes.js';
+import { ApiErrorHandler } from './errors.js';
 
-export function buildApp() {
-	const app = Fastify({ logger: true });
-	app.setErrorHandler(errorHandler);
-	app.register(registerRoutes);
-	return app;
+export class ClaimsServer {
+	constructor(
+		private readonly routes = new RouteRegistrar(),
+		private readonly errors = new ApiErrorHandler()
+	) {}
+
+	build() {
+		const app = Fastify({ logger: true });
+		app.setErrorHandler(this.errors.handle.bind(this.errors));
+		app.register(this.routes.register.bind(this.routes));
+		return app;
+	}
 }

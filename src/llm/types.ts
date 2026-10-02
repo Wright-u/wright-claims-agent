@@ -30,8 +30,9 @@ export interface LlmResponse {
 
 export interface LlmCallOptions {
 	system: string;
-	tools: ToolDef[];
+	tools?: ToolDef[];
 	messages: LlmMessage[];
 	forceTool?: string;
+	jsonResponse?: boolean;
 	maxTokens?: number;
 }

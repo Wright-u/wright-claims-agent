@@ -13,19 +13,13 @@ const EnvSchema = z.object({
 	LLM_API_KEY: z.string().min(1, 'LLM_API_KEY is required'),
 	LLM_MODEL: z.string().default('openai/gpt-oss-20b'),
 
-	CORE_MCP_URL: z.string().url().default('http://localhost:5000/mcp'),
+	CORE_MCP_URL: z.string().url().default('http://localhost:5000/api/mcp'),
 	CORE_API_KEY: z.string().default(''),
 
 	CORE_MODE: z.enum(['mock', 'mcp']).default('mock'),
 	MOCK_FIXTURE_PATH: z
 		.string()
 		.default('test/mock-core/fixtures/notes-tool.json'),
-
-	CODE_READ_TOOL_NAME: z.string().default('getImplementation'),
-
-	OUTLINE_TOOL_NAME: z.string().default('getAppSkeleton'),
-
-	CORE_APP_URL_TEMPLATE: z.string().default('{containerId}'),
 
 	AGENT_API_KEY: z.string().default(''),
 
@@ -38,14 +32,16 @@ const EnvSchema = z.object({
 
 export type Config = z.infer<typeof EnvSchema>;
 
-function loadConfig(): Config {
-	const parsed = EnvSchema.safeParse(process.env);
-	if (!parsed.success) {
-		console.error('Invalid environment configuration:');
-		console.error(parsed.error.format());
-		process.exit(1);
+export class ConfigLoader {
+	load(environment: NodeJS.ProcessEnv = process.env): Config {
+		const parsed = EnvSchema.safeParse(environment);
+		if (!parsed.success) {
+			console.error('Invalid environment configuration:');
+			console.error(parsed.error.format());
+			process.exit(1);
+		}
+		return parsed.data;
 	}
-	return parsed.data;
 }
 
-export const config = loadConfig();
+export const config = new ConfigLoader().load();

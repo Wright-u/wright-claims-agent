@@ -1,8 +1,8 @@
 /**
- *   npm run try -- --container daemon --claim "Business logic lives here"
+ *   npm run try -- --app daemon --narrative "Business logic lives here"
  */
 import process from 'node:process';
-import { verify } from '../src/verify/loop.js';
+import { ClaimVerifier } from '../src/verify/loop.js';
 
 function arg(name: string): string | undefined {
 	const i = process.argv.indexOf(`--${name}`);
@@ -10,29 +10,21 @@ function arg(name: string): string | undefined {
 }
 
 async function main() {
-	const containerId = arg('container') ?? 'daemon';
-	const text =
-		arg('claim') ??
-		'Business logic (validation, rules) lives in this container';
+	const appName = arg('app') ?? 'daemon';
+	const narrative =
+		arg('narrative') ??
+		'Business logic (validation, rules) lives in this application';
 
-	const claim = { id: 'manual.n1', text, type: 'presence' as const };
+	console.log(`\nVerifying narrative on "${appName}": "${narrative}"\n`);
+	const result = await new ClaimVerifier().verify(appName, narrative);
 
-	console.log(`\nVerifying claim on "${containerId}": "${text}"\n`);
-	const result = await verify(containerId, claim);
-
-	console.log('Verdict:      ', result.verdict);
-	console.log('Reasoning:    ', result.reasoning);
-	console.log('Evidence:     ', result.evidence);
-	console.log('Rounds used:  ', result.rounds);
-	console.log('Code requests:', result.codeRequests);
-	console.log('\nTrace:');
-	for (const step of result.trace) {
-		console.log(
-			`  [round ${step.round}] ${step.tool}`,
-			step.args,
-			'->',
-			step.resultSummary
-		);
+	for (const verification of result.results) {
+		console.log(`\nClaim:        ${verification.claimId}`);
+		console.log('Verdict:      ', verification.verdict);
+		console.log('Reasoning:    ', verification.reasoning);
+		console.log('Evidence:     ', verification.evidence);
+		console.log('Rounds used:  ', verification.rounds);
+		console.log('Code requests:', verification.codeRequests);
 	}
 }
 

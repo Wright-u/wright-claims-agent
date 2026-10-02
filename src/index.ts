@@ -1,7 +1,7 @@
-import { buildApp } from './server/app.js';
+import { ClaimsServer } from './server/app.js';
 import { config } from './config.js';
 
-const app = buildApp();
+const app = new ClaimsServer().build();
 
 app.listen({ port: config.PORT, host: '0.0.0.0' })
 	.then(() => {
