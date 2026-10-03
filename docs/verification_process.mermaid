@@ -10,6 +10,12 @@ sequenceDiagram
             Verifier ->>- Verifier: return undetermined
         else
             Verifier ->>+ CoreClientConnector: connect
-            CoreClientConnector ->>- Verifier: MCP discovery result 
+            CoreClientConnector ->>- Verifier: MCP discovery result
+            Verifier ->>+ Budget: GetMaxRounds
+            Budget ->>- Verifier: return maxRounds
+            loop each round in maxRounds
+                Verifier ->>+ LlmClient: complete(verifySystemPrompt, llmTools, isJson, messages)
+                LlmClient ->>- Verifier: LLM response
+            end
         end
     end
