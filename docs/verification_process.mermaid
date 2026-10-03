@@ -1,0 +1,15 @@
+sequenceDiagram
+    
+    Client ->>+ API: /api/verify
+    API ->>+ Verifier: verify(appName, narrative)
+    Verifier ->>+ Normalizer: normalize(appName, narrative)
+    Normalizer ->>- Verifier: return structured claims
+    loop each claim in claims 
+        Verifier ->>+ Verifier: verifyClaim(appName, claim)
+        alt claim.type is qualitative
+            Verifier ->>- Verifier: return undetermined
+        else
+            Verifier ->>+ CoreClientConnector: connect
+            CoreClientConnector ->>- Verifier: MCP discovery result 
+        end
+    end
